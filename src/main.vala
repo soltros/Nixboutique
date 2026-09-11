@@ -8,6 +8,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     private Gtk.Label detail_attr = new Gtk.Label ("");
     private Gtk.Button install_button = new Gtk.Button.with_label ("Install");
     private PackageInfo? selected;
+    private Gee.HashSet<PackageInfo> checked = new Gee.HashSet<PackageInfo> ();
 
     public NixStoreWindow (Gtk.Application app, Catalog catalog) {
         Object (application: app, title: "Nixboutique", default_width: 1320, default_height: 820);
@@ -41,7 +42,11 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var subtitle = new Gtk.Label ("NixOS application browser"); subtitle.xalign = 0; subtitle.add_css_class ("brand-subtitle");
         brand.append (title); brand.append (subtitle); side.append (brand);
         foreach (var label in new string[] { "Browse applications", "Installed", "Updates", "Snapshots" }) {
-            var button = new Gtk.ToggleButton.with_label (label); button.set_halign (Gtk.Align.FILL); button.add_css_class ("nav-button"); side.append (button);
+            var button = new Gtk.ToggleButton.with_label (label); button.set_halign (Gtk.Align.FILL); button.add_css_class ("nav-button");
+            if (label == "Installed") button.toggled.connect (() => { if (button.active) nixpkger.list (); });
+            if (label == "Updates") button.toggled.connect (() => { if (button.active) nixpkger.update_soltros (); });
+            if (label == "Snapshots") button.toggled.connect (() => { if (button.active) show_operations (); });
+            side.append (button);
         }
         var settings = new Gtk.Button.with_label ("Settings"); settings.set_halign (Gtk.Align.FILL); settings.add_css_class ("nav-button"); settings.clicked.connect (() => show_settings ()); side.append (settings);
         var spacer = new Gtk.Box (Gtk.Orientation.VERTICAL, 0); spacer.vexpand = true; side.append (spacer);
@@ -52,7 +57,11 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     private Gtk.Widget build_header () {
         var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 14); header.margin_top = 16; header.margin_bottom = 16; header.margin_start = 20; header.margin_end = 20; header.add_css_class ("content-header");
         var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search 144,297 packages by name, attribute, or description"; search_entry.hexpand = true; search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => search (search_entry.text));
-        header.append (search_entry); result_count.add_css_class ("muted"); header.append (result_count); return header;
+        var install = new Gtk.Button.with_label ("Install checked"); install.add_css_class ("install"); install.clicked.connect (() => batch_install ());
+        var remove = new Gtk.Button.with_label ("Remove checked"); remove.clicked.connect (() => batch_remove ());
+        var update = new Gtk.Button.with_label ("Update system"); update.clicked.connect (() => nixpkger.update ());
+        var soltros_update = new Gtk.Button.with_label ("Update soltros"); soltros_update.clicked.connect (() => nixpkger.update_soltros ());
+        header.append (search_entry); header.append (install); header.append (remove); header.append (update); header.append (soltros_update); result_count.add_css_class ("muted"); header.append (result_count); return header;
     }
 
     private Gtk.Widget build_detail () {
@@ -66,6 +75,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     }
 
     private void search (string query) {
+        checked.clear ();
         while (true) { var row = package_list.get_row_at_index (0); if (row == null) break; package_list.remove (row); }
         var matches = catalog.search (query); result_count.label = "%d results".printf (matches.size);
         foreach (var item in matches) {
@@ -121,11 +131,12 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         });
         var apps_row = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8); apps_row.append (apps_file); apps_row.append (choose);
         var module_file = new Gtk.Entry (); module_file.placeholder_text = "Optional configuration.nix or importing module path"; module_file.text = nixpkger.module_file;
+        var category = new Gtk.Entry (); category.placeholder_text = "Optional category name"; category.text = nixpkger.category;
         var impure = new Gtk.CheckButton.with_label ("Use --impure for flake operations"); impure.active = nixpkger.impure;
         var form = new Gtk.Grid (); form.column_spacing = 12; form.row_spacing = 10;
-        add_setting_row (form, 0, "Config directory", config_dir); add_setting_row (form, 1, "Flake", flake); add_setting_row (form, 2, "Apps file", apps_row); add_setting_row (form, 3, "Module file", module_file);
+        add_setting_row (form, 0, "Config directory", config_dir); add_setting_row (form, 1, "Flake", flake); add_setting_row (form, 2, "Apps file", apps_row); add_setting_row (form, 3, "Module file", module_file); add_setting_row (form, 4, "Category", category);
         var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END; var cancel = new Gtk.Button.with_label ("Cancel"); cancel.clicked.connect (() => dialog.close ()); var save = new Gtk.Button.with_label ("Save settings"); save.add_css_class ("install");
-        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.impure = impure.active; dialog.close (); show_status ("Nixpkger settings updated."); }); actions.append (cancel); actions.append (save);
+        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; dialog.close (); show_status ("Nixpkger settings updated."); }); actions.append (cancel); actions.append (save);
         box.append (title); box.append (intro); box.append (form); box.append (impure); box.append (actions); dialog.set_child (box); dialog.present ();
     }
 
@@ -133,15 +144,34 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var caption = new Gtk.Label (label); caption.xalign = 1; caption.add_css_class ("package-name"); field.hexpand = true; form.attach (caption, 0, row, 1, 1); form.attach (field, 1, row, 1, 1);
     }
 
+    private void show_operations () {
+        var dialog = new Gtk.Window (); dialog.title = "Nixpkger operations"; dialog.transient_for = this; dialog.modal = true; dialog.default_width = 500; dialog.default_height = 340;
+        var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 12); box.margin_top = 24; box.margin_bottom = 24; box.margin_start = 26; box.margin_end = 26;
+        var title = new Gtk.Label ("Snapshots and recovery"); title.xalign = 0; title.add_css_class ("section-title");
+        var info = new Gtk.Label ("These operations act on the configured apps.nix file. Backup and snapshot preserve the selected module; restore replaces it after nixpkger validates the file."); info.xalign = 0; info.wrap = true; info.add_css_class ("muted");
+        var snapshot = new Gtk.Button.with_label ("Create snapshot"); snapshot.clicked.connect (() => nixpkger.snapshot ());
+        var backup = new Gtk.Button.with_label ("Create backup"); backup.clicked.connect (() => nixpkger.backup ());
+        var gc = new Gtk.Button.with_label ("Collect garbage"); gc.clicked.connect (() => nixpkger.gc ());
+        var restore = new Gtk.Button.with_label ("Restore snapshot…"); restore.clicked.connect (() => {
+            var chooser = new Gtk.FileDialog (); chooser.title = "Choose a .nix snapshot";
+            chooser.open.begin (dialog, null, (obj, res) => { try { var file = chooser.open.end (res); if (file != null && file.get_path () != null) nixpkger.restore (file.get_path ()); } catch (Error e) { show_status (e.message); } });
+        });
+        var close = new Gtk.Button.with_label ("Close"); close.clicked.connect (() => dialog.close ());
+        box.append (title); box.append (info); box.append (snapshot); box.append (backup); box.append (restore); box.append (gc); box.append (close); dialog.set_child (box); dialog.present ();
+    }
+
     private Gtk.Widget package_row (PackageInfo item) {
         var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 3); box.add_css_class ("package-row");
-        var top = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8); var name = new Gtk.Label (item.pname); name.xalign = 0; name.hexpand = true; name.add_css_class ("package-name"); var version = new Gtk.Label (item.version); version.add_css_class ("package-version"); top.append (name); top.append (version);
+        var top = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8); var check = new Gtk.CheckButton (); check.tooltip_text = "Include this package in a batch operation"; check.toggled.connect (() => { if (check.active) checked.add (item); else checked.remove (item); }); var name = new Gtk.Label (item.pname); name.xalign = 0; name.hexpand = true; name.add_css_class ("package-name"); var version = new Gtk.Label (item.version); version.add_css_class ("package-version"); top.append (check); top.append (name); top.append (version);
         var desc = new Gtk.Label (item.description); desc.xalign = 0; desc.ellipsize = Pango.EllipsizeMode.END; desc.max_width_chars = 70; desc.add_css_class ("package-desc");
         box.append (top); box.append (desc); return box;
     }
 
     private void select_row (Gtk.ListBoxRow row) { selected = row.get_data<PackageInfo> ("package"); if (selected == null) return; detail_title.label = selected.pname; detail_attr.label = "pkgs." + selected.attr + "  ·  " + selected.version; detail_description.label = selected.description; install_button.set_sensitive (true); }
     private void show_status (string message) { result_count.label = message; }
+    private Gee.ArrayList<PackageInfo> checked_packages () { var packages = new Gee.ArrayList<PackageInfo> (); foreach (var package in checked) packages.add (package); return packages; }
+    private void batch_install () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.install_many (checked_packages ()); }
+    private void batch_remove () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.remove_many (checked_packages ()); }
 }
 
 public class NixStoreApp : Gtk.Application {
