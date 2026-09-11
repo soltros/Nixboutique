@@ -14,3 +14,4 @@ executable('nixboutique',
 )
 
 install_data('data/com.soltros.Nixboutique.desktop', install_dir: get_option('datadir') / 'applications')
+install_data('data/nixos_packages_summary.json', install_dir: get_option('datadir') / 'nixboutique')

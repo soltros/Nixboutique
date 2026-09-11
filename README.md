@@ -5,11 +5,13 @@ An early GTK4/Vala desktop browser for NixOS applications, backed by
 
 Licensed under GPLv3-or-later.
 
-The first slice uses the local package summary at
-`../nixos_search_rag/nixos_packages_summary.json`, searches it offline, and
+The first slice ships the NixOS package summary in the application, searches it offline, and
 delegates installation to `nixpkger install <attribute>`. Richer package
 records, installed-state detection, removal, updates, and snapshots are the
 next backend/UI slices.
+
+Nixpkger is required for package actions. If it is not found at startup,
+Nixboutique opens setup instructions for the latest release and Git install.
 
 ## Run from soltros_nixpkgs
 

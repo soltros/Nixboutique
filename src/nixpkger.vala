@@ -2,6 +2,10 @@ public class Nixpkger : Object {
     public signal void finished (string message, bool success);
     public string command { get; set; default = "nixpkger"; }
 
+    public bool is_available () {
+        return Environment.find_program_in_path (command) != null;
+    }
+
     public void install (PackageInfo package) { run ("install", package.attr); }
     public void remove (PackageInfo package) { run ("remove", package.attr); }
     public void update () { run ("update"); }

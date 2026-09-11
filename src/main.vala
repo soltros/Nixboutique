@@ -72,6 +72,19 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         }
     }
 
+    public void show_nixpkger_wizard () {
+        if (nixpkger.is_available ()) return;
+        var dialog = new Gtk.Window (); dialog.title = "Set up nixpkger"; dialog.transient_for = this; dialog.modal = true; dialog.default_width = 600; dialog.default_height = 420;
+        var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 14); box.margin_top = 24; box.margin_bottom = 24; box.margin_start = 26; box.margin_end = 26;
+        var title = new Gtk.Label ("Nixboutique needs nixpkger"); title.xalign = 0; title.add_css_class ("section-title");
+        var body = new Gtk.Label ("Nixpkger handles installation, removal, updates, snapshots, and NixOS configuration changes. Install it once, then restart Nixboutique."); body.xalign = 0; body.wrap = true;
+        var instructions = new Gtk.Label ("Download and extract the source archive from the latest release, then run sh install.sh inside the extracted directory.\n\nOr install from Git:\n\ngit clone https://github.com/soltros/nixpkger.git\ncd nixpkger\nsh install.sh"); instructions.xalign = 0; instructions.wrap = true; instructions.selectable = true; instructions.add_css_class ("detail-attr");
+        var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END;
+        var release = new Gtk.Button.with_label ("Open latest release"); release.clicked.connect (() => { try { AppInfo.launch_default_for_uri ("https://github.com/soltros/nixpkger/releases/latest", null); } catch (Error e) { show_status (e.message); } });
+        var close = new Gtk.Button.with_label ("Close"); close.clicked.connect (() => dialog.close ()); actions.append (release); actions.append (close);
+        box.append (title); box.append (body); box.append (instructions); box.append (actions); dialog.set_child (box); dialog.present ();
+    }
+
     private Gtk.Widget package_row (PackageInfo item) {
         var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 3); box.add_css_class ("package-row");
         var top = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8); var name = new Gtk.Label (item.pname); name.xalign = 0; name.hexpand = true; name.add_css_class ("package-name"); var version = new Gtk.Label (item.version); version.add_css_class ("package-version"); top.append (name); top.append (version);
@@ -87,9 +100,28 @@ public class NixStoreApp : Gtk.Application {
     public NixStoreApp () { Object (application_id: "com.soltros.Nixboutique", flags: ApplicationFlags.DEFAULT_FLAGS); }
     protected override void activate () {
         try {
-            var path = Environment.get_variable ("NIXBOUTIQUE_CATALOG") ?? "nixos_search_rag/nixos_packages_summary.json";
+            var path = Environment.get_variable ("NIXBOUTIQUE_CATALOG") ?? find_catalog ();
             var window = new NixStoreWindow (this, new Catalog (path)); window.present ();
+            window.show_nixpkger_wizard ();
         } catch (Error e) { critical ("Unable to load catalog: %s", e.message); }
+    }
+
+    private string find_catalog () throws Error {
+        var candidates = new string[] {
+            "nixos_search_rag/nixos_packages_summary.json",
+            "data/nixos_packages_summary.json",
+            "/usr/share/nixboutique/nixos_packages_summary.json",
+            "/run/current-system/sw/share/nixboutique/nixos_packages_summary.json",
+            Environment.get_variable ("NIXBOUTIQUE_DATADIR") ?? ""
+        };
+        foreach (var candidate in candidates) {
+            if (candidate.length > 0 && FileUtils.test (candidate, FileTest.EXISTS)) {
+                if (candidate.has_suffix (".json")) return candidate;
+                var bundled = Path.build_filename (candidate, "nixos_packages_summary.json");
+                if (FileUtils.test (bundled, FileTest.EXISTS)) return bundled;
+            }
+        }
+        throw new FileError.NOENT ("Bundled NixOS package catalog not found");
     }
 }
 
