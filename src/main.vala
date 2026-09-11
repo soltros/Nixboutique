@@ -85,6 +85,27 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         box.append (title); box.append (body); box.append (instructions); box.append (actions); dialog.set_child (box); dialog.present ();
     }
 
+    public void show_startup_wizard () {
+        if (!nixpkger.is_available ()) { show_nixpkger_wizard (); return; }
+        show_sudo_wizard ();
+    }
+
+    private void show_sudo_wizard () {
+        var dialog = new Gtk.Window (); dialog.title = "Administrator access"; dialog.transient_for = this; dialog.modal = true; dialog.default_width = 560; dialog.default_height = 330;
+        var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 14); box.margin_top = 24; box.margin_bottom = 24; box.margin_start = 26; box.margin_end = 26;
+        var title = new Gtk.Label ("Nixboutique needs administrator access"); title.xalign = 0; title.add_css_class ("section-title");
+        var body = new Gtk.Label ("To install and remove NixOS applications in-window, Nixboutique needs to authorize sudo through nixpkger. Your password is passed directly to sudo and is not saved by Nixboutique."); body.xalign = 0; body.wrap = true;
+        var password = new Gtk.PasswordEntry (); password.placeholder_text = "Administrator password"; password.show_peek_icon = true;
+        var error = new Gtk.Label (""); error.xalign = 0; error.wrap = true; error.add_css_class ("muted");
+        var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END;
+        var authorize = new Gtk.Button.with_label ("Authorize"); authorize.add_css_class ("install");
+        var continue_button = new Gtk.Button.with_label ("Continue without install access"); continue_button.clicked.connect (() => dialog.close ());
+        authorize.clicked.connect (() => { authorize.set_sensitive (false); error.label = "Checking sudo credentials…"; nixpkger.authenticate (password.text); });
+        nixpkger.auth_finished.connect ((message, success) => { if (success) dialog.close (); else { authorize.set_sensitive (true); error.label = message; } show_status (message); });
+        password.activate.connect (() => authorize.clicked ());
+        actions.append (continue_button); actions.append (authorize); box.append (title); box.append (body); box.append (password); box.append (error); box.append (actions); dialog.set_child (box); dialog.present ();
+    }
+
     private Gtk.Widget package_row (PackageInfo item) {
         var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 3); box.add_css_class ("package-row");
         var top = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8); var name = new Gtk.Label (item.pname); name.xalign = 0; name.hexpand = true; name.add_css_class ("package-name"); var version = new Gtk.Label (item.version); version.add_css_class ("package-version"); top.append (name); top.append (version);
@@ -102,7 +123,7 @@ public class NixStoreApp : Gtk.Application {
         try {
             var path = Environment.get_variable ("NIXBOUTIQUE_CATALOG") ?? find_catalog ();
             var window = new NixStoreWindow (this, new Catalog (path)); window.present ();
-            window.show_nixpkger_wizard ();
+            window.show_startup_wizard ();
         } catch (Error e) { critical ("Unable to load catalog: %s", e.message); }
     }
 
