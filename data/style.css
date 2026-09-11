@@ -1,0 +1,20 @@
+window { background: #f6f7f9; }
+.sidebar { background: #eef0f4; border-right: 1px solid #d9dde5; }
+.brand { font-size: 22px; font-weight: 800; color: #20242d; }
+.brand-subtitle { color: #6d7480; font-size: 12px; }
+.nav-button { border-radius: 8px; padding: 8px; margin: 1px 10px; }
+.nav-button:checked { background: #dce7ff; color: #1555c0; }
+.content-header { background: #ffffff; border-bottom: 1px solid #e0e3e8; }
+.search { min-height: 38px; border-radius: 9px; }
+.section-title { font-size: 24px; font-weight: 800; color: #20242d; }
+.muted { color: #6d7480; }
+.package-row { padding: 11px 16px; border-bottom: 1px solid #edf0f4; }
+.package-row:hover { background: #f4f7fc; }
+.package-name { font-weight: 700; color: #20242d; }
+.package-desc { color: #5f6773; }
+.package-version { color: #7b8492; font-size: 12px; }
+.detail { background: #ffffff; border-left: 1px solid #e0e3e8; padding: 28px; }
+.detail-title { font-size: 30px; font-weight: 850; color: #20242d; }
+.detail-attr { font-family: monospace; color: #687180; }
+.pill { background: #edf2fb; color: #315c9f; border-radius: 999px; padding: 5px 10px; }
+.install { background: #2764d8; color: white; font-weight: 700; padding: 9px 22px; border-radius: 8px; }
