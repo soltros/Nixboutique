@@ -136,7 +136,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var form = new Gtk.Grid (); form.column_spacing = 12; form.row_spacing = 10;
         add_setting_row (form, 0, "Config directory", config_dir); add_setting_row (form, 1, "Flake", flake); add_setting_row (form, 2, "Apps file", apps_row); add_setting_row (form, 3, "Module file", module_file); add_setting_row (form, 4, "Category", category);
         var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END; var cancel = new Gtk.Button.with_label ("Cancel"); cancel.clicked.connect (() => dialog.close ()); var save = new Gtk.Button.with_label ("Save settings"); save.add_css_class ("install");
-        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; dialog.close (); show_status ("Nixpkger settings updated."); }); actions.append (cancel); actions.append (save);
+        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; nixpkger.save_settings (); dialog.close (); show_status ("Nixpkger settings updated."); }); actions.append (cancel); actions.append (save);
         box.append (title); box.append (intro); box.append (form); box.append (impure); box.append (actions); dialog.set_child (box); dialog.present ();
     }
 

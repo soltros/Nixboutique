@@ -9,6 +9,23 @@ public class Nixpkger : Object {
     public string category { get; set; default = ""; }
     public bool impure { get; set; default = false; }
 
+    public Nixpkger () { load_settings (); }
+
+    public void load_settings () {
+        var key = new KeyFile (); var path = settings_path ();
+        try {
+            key.load_from_file (path, KeyFileFlags.NONE);
+            config_dir = key.get_string ("nixpkger", "config-dir"); apps_file = key.get_string ("nixpkger", "apps-file"); module_file = key.get_string ("nixpkger", "module-file"); flake = key.get_string ("nixpkger", "flake"); category = key.get_string ("nixpkger", "category"); impure = key.get_boolean ("nixpkger", "impure");
+        } catch (Error e) { }
+    }
+
+    public void save_settings () {
+        var key = new KeyFile (); key.set_string ("nixpkger", "config-dir", config_dir); key.set_string ("nixpkger", "apps-file", apps_file); key.set_string ("nixpkger", "module-file", module_file); key.set_string ("nixpkger", "flake", flake); key.set_string ("nixpkger", "category", category); key.set_boolean ("nixpkger", "impure", impure);
+        try { var path = settings_path (); DirUtils.create_with_parents (Path.get_dirname (path), 0755); key.save_to_file (path); } catch (Error e) { }
+    }
+
+    private string settings_path () { return Path.build_filename (Environment.get_user_config_dir (), "nixboutique", "settings.ini"); }
+
     public bool is_available () {
         return Environment.find_program_in_path (command) != null;
     }
