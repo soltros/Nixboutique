@@ -3,6 +3,8 @@ public class Nixpkger : Object {
     public signal void auth_finished (string message, bool success);
     public signal void search_finished (string output, bool success);
     public signal void list_finished (string output, bool success);
+    public signal void operation_started (string action);
+    public signal void operation_output (string output);
     public string command { get; set; default = "nixpkger"; }
     public string config_dir { get; set; default = ""; }
     public string apps_file { get; set; default = ""; }
@@ -113,16 +115,18 @@ public class Nixpkger : Object {
             if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree");
             args.add (action); if (category.length > 0 && (action == "install" || action == "remove" || action == "update")) { args.add ("--category"); args.add (category); } foreach (var argument in trailing) args.add (argument);
             string[] argv = owned_argv (args);
+            operation_started (action);
             var process = new Subprocess.newv (argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
                 try {
                     string? stdout;
                     string? stderr;
                     process.communicate_utf8_async.end (res, out stdout, out stderr);
+                    operation_output (stdout ?? "");
                     finished (stdout ?? "Operation complete.", process.get_successful ());
-                } catch (Error e) { finished (e.message, false); }
+                } catch (Error e) { operation_output (e.message); finished (e.message, false); }
             });
-        } catch (Error e) { finished (e.message, false); }
+        } catch (Error e) { operation_output (e.message); finished (e.message, false); }
     }
 
     private string[] owned_argv (Gee.ArrayList<string> args) {

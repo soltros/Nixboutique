@@ -8,6 +8,10 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     private Gtk.Label detail_attr = new Gtk.Label ("");
     private Gtk.Label detail_meta = new Gtk.Label ("");
     private Gtk.Button install_button = new Gtk.Button.with_label ("Install");
+    private Gtk.Window? operation_window;
+    private Gtk.ProgressBar? operation_progress;
+    private Gtk.TextBuffer? operation_buffer;
+    private uint operation_pulse = 0;
     private PackageInfo? selected;
     private Gee.HashSet<PackageInfo> checked = new Gee.HashSet<PackageInfo> ();
 
@@ -17,7 +21,9 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         css.load_from_resource ("/com/soltros/Nixboutique/style.css");
         Gtk.StyleContext.add_provider_for_display (Gdk.Display.get_default (), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         this.catalog = catalog;
-        nixpkger.finished.connect ((message, success) => show_status (success ? "✓ " + message : "⚠ " + message));
+        nixpkger.finished.connect ((message, success) => { install_button.set_sensitive (selected != null); install_button.label = "Install"; show_status (success ? "✓ " + message : "⚠ " + message); });
+        nixpkger.operation_started.connect ((action) => show_operation (action));
+        nixpkger.operation_output.connect ((output) => { if (operation_buffer != null) operation_buffer.text = output; });
         nixpkger.search_finished.connect ((output, success) => { if (success) display_live_results (output); else show_status ("Live search unavailable; showing local catalog."); });
         nixpkger.list_finished.connect ((output, success) => { if (success) display_installed (output); else show_status ("Installed packages unavailable; configure nixpkger in Settings."); });
         set_child (build_ui ());
@@ -73,7 +79,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         detail_attr.xalign = 0; detail_attr.wrap = true; detail_attr.add_css_class ("detail-attr");
         detail_meta.xalign = 0; detail_meta.wrap = true; detail_meta.add_css_class ("muted");
         detail_description.xalign = 0; detail_description.wrap = true; detail_description.max_width_chars = 48; detail_description.add_css_class ("package-desc");
-        install_button.add_css_class ("install"); install_button.set_sensitive (false); install_button.clicked.connect (() => { if (selected != null) nixpkger.install (selected); });
+        install_button.add_css_class ("install"); install_button.set_sensitive (false); install_button.clicked.connect (() => start_install ());
         box.append (detail_title); box.append (detail_attr); box.append (detail_meta); box.append (detail_description); box.append (install_button);
         var note = new Gtk.Label ("Actions are delegated to nixpkger and may ask for administrator approval."); note.xalign = 0; note.wrap = true; note.add_css_class ("muted"); box.append (note); return box;
     }
@@ -179,6 +185,23 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     private Gee.ArrayList<PackageInfo> checked_packages () { var packages = new Gee.ArrayList<PackageInfo> (); foreach (var package in checked) packages.add (package); return packages; }
     private void batch_install () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.install_many (checked_packages ()); }
     private void batch_remove () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.remove_many (checked_packages ()); }
+    private void start_install () { if (selected == null) return; install_button.set_sensitive (false); install_button.label = "Installing…"; show_status ("Installing %s…".printf (selected.pname)); nixpkger.install (selected); }
+
+    private void show_operation (string action) {
+        if (operation_window != null) operation_window.close ();
+        operation_window = new Gtk.Window (); operation_window.title = "Nixpkger operation"; operation_window.transient_for = this; operation_window.modal = true; operation_window.default_width = 760; operation_window.default_height = 500;
+        var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 12); box.margin_top = 22; box.margin_bottom = 22; box.margin_start = 24; box.margin_end = 24;
+        var title = new Gtk.Label ("Nixpkger is running"); title.xalign = 0; title.add_css_class ("section-title");
+        var status = new Gtk.Label ("Working on %s…".printf (action)); status.xalign = 0; status.add_css_class ("muted");
+        operation_progress = new Gtk.ProgressBar (); operation_progress.show_text = true; operation_progress.text = "Working…";
+        var expander = new Gtk.Expander ("Show command output"); expander.expanded = false;
+        var terminal = new Gtk.ScrolledWindow (); terminal.set_size_request (-1, 300); terminal.vexpand = true;
+        var text = new Gtk.TextView (); text.editable = false; text.cursor_visible = false; text.monospace = true; text.wrap_mode = Gtk.WrapMode.WORD_CHAR; operation_buffer = text.buffer; terminal.set_child (text); expander.set_child (terminal);
+        var close = new Gtk.Button.with_label ("Close"); close.halign = Gtk.Align.END; close.set_sensitive (false); close.clicked.connect (() => operation_window.close ());
+        box.append (title); box.append (status); box.append (operation_progress); box.append (expander); box.append (close); operation_window.set_child (box); operation_window.present ();
+        operation_pulse = Timeout.add (120, () => { if (operation_progress == null) return Source.REMOVE; operation_progress.pulse (); return Source.CONTINUE; });
+        nixpkger.finished.connect ((message, success) => { if (operation_window == null) return; if (operation_pulse != 0) { Source.remove (operation_pulse); operation_pulse = 0; } if (operation_progress != null) { operation_progress.fraction = 1.0; operation_progress.text = success ? "Complete" : "Failed"; } status.label = success ? "Operation complete." : "Operation failed."; close.set_sensitive (true); });
+    }
 
     private void display_live_results (string output) {
         try {
