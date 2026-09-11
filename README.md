@@ -5,10 +5,12 @@ An early GTK4/Vala desktop browser for NixOS applications, backed by
 
 Licensed under GPLv3-or-later.
 
-The first slice ships the NixOS package summary in the application, searches it offline, and
-delegates installation to `nixpkger install <attribute>`. Richer package
-records, installed-state detection, removal, updates, and snapshots are the
-next backend/UI slices.
+The bundled NixOS package summary provides the initial catalog and offline
+fallback. Once `nixpkger` is available, searches of two or more characters are
+sent to `nixpkger search --json` so the result list and detail pane use live Nix
+metadata (description, version, homepage, and source position when available).
+Installation, removal, updates, snapshots, categories, and configuration-file
+selection remain delegated to nixpkger.
 
 Nixpkger is required for package actions. If it is not found at startup,
 Nixboutique opens setup instructions for the latest release and Git install.

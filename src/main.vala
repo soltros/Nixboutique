@@ -6,6 +6,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     private Gtk.Label detail_title = new Gtk.Label ("Select a package");
     private Gtk.Label detail_description = new Gtk.Label ("Choose an application from the catalog to see its description, package attribute, version, and available actions.");
     private Gtk.Label detail_attr = new Gtk.Label ("");
+    private Gtk.Label detail_meta = new Gtk.Label ("");
     private Gtk.Button install_button = new Gtk.Button.with_label ("Install");
     private PackageInfo? selected;
     private Gee.HashSet<PackageInfo> checked = new Gee.HashSet<PackageInfo> ();
@@ -17,8 +18,10 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         Gtk.StyleContext.add_provider_for_display (Gdk.Display.get_default (), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         this.catalog = catalog;
         nixpkger.finished.connect ((message, success) => show_status (success ? "✓ " + message : "⚠ " + message));
+        nixpkger.search_finished.connect ((output, success) => { if (success) display_live_results (output); else show_status ("Live search unavailable; showing local catalog."); });
+        nixpkger.list_finished.connect ((output, success) => { if (success) display_installed (output); else show_status ("Installed packages unavailable; configure nixpkger in Settings."); });
         set_child (build_ui ());
-        search ("");
+        if (nixpkger.is_available () && nixpkger.settings_configured) nixpkger.list (); else search ("");
     }
 
     private Gtk.Widget build_ui () {
@@ -56,7 +59,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
 
     private Gtk.Widget build_header () {
         var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 14); header.margin_top = 16; header.margin_bottom = 16; header.margin_start = 20; header.margin_end = 20; header.add_css_class ("content-header");
-        var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search 144,297 packages by name, attribute, or description"; search_entry.hexpand = true; search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => search (search_entry.text));
+        var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search nixpkgs live by name, attribute, or description"; search_entry.hexpand = true; search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => { search (search_entry.text); if (nixpkger.is_available () && search_entry.text.strip ().length >= 2) nixpkger.search (search_entry.text.strip ()); });
         var install = new Gtk.Button.with_label ("Install checked"); install.add_css_class ("install"); install.clicked.connect (() => batch_install ());
         var remove = new Gtk.Button.with_label ("Remove checked"); remove.clicked.connect (() => batch_remove ());
         var update = new Gtk.Button.with_label ("Update system"); update.clicked.connect (() => nixpkger.update ());
@@ -68,9 +71,10 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 15); box.add_css_class ("detail"); box.set_size_request (390, -1);
         detail_title.xalign = 0; detail_title.wrap = true; detail_title.add_css_class ("detail-title");
         detail_attr.xalign = 0; detail_attr.wrap = true; detail_attr.add_css_class ("detail-attr");
+        detail_meta.xalign = 0; detail_meta.wrap = true; detail_meta.add_css_class ("muted");
         detail_description.xalign = 0; detail_description.wrap = true; detail_description.max_width_chars = 48; detail_description.add_css_class ("package-desc");
         install_button.add_css_class ("install"); install_button.set_sensitive (false); install_button.clicked.connect (() => { if (selected != null) nixpkger.install (selected); });
-        box.append (detail_title); box.append (detail_attr); box.append (detail_description); box.append (install_button);
+        box.append (detail_title); box.append (detail_attr); box.append (detail_meta); box.append (detail_description); box.append (install_button);
         var note = new Gtk.Label ("Actions are delegated to nixpkger and may ask for administrator approval."); note.xalign = 0; note.wrap = true; note.add_css_class ("muted"); box.append (note); return box;
     }
 
@@ -98,7 +102,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
 
     public void show_startup_wizard () {
         if (!nixpkger.is_available ()) { show_nixpkger_wizard (); return; }
-        show_sudo_wizard ();
+        if (!nixpkger.settings_configured) show_settings (true); else { show_sudo_wizard (); nixpkger.list (); }
     }
 
     private void show_sudo_wizard () {
@@ -117,11 +121,11 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         actions.append (continue_button); actions.append (authorize); box.append (title); box.append (body); box.append (password); box.append (error); box.append (actions); dialog.set_child (box); dialog.present ();
     }
 
-    private void show_settings () {
+    private void show_settings (bool first_run = false) {
         var dialog = new Gtk.Window (); dialog.title = "Nixboutique settings"; dialog.transient_for = this; dialog.modal = true; dialog.default_width = 700; dialog.default_height = 500;
         var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 14); box.margin_top = 24; box.margin_bottom = 24; box.margin_start = 26; box.margin_end = 26;
-        var title = new Gtk.Label ("Nixpkger configuration"); title.xalign = 0; title.add_css_class ("section-title");
-        var intro = new Gtk.Label ("These values are passed to nixpkger before every package operation. Leave Apps file empty to let nixpkger discover apps.nix recursively."); intro.xalign = 0; intro.wrap = true; intro.add_css_class ("muted");
+        var title = new Gtk.Label (first_run ? "Set up your NixOS configuration" : "Nixpkger configuration"); title.xalign = 0; title.add_css_class ("section-title");
+        var intro = new Gtk.Label (first_run ? "Nixboutique needs to know which NixOS configuration and package module nixpkger should manage. Choose your flake or configuration directory, and optionally select the apps.nix file. You can change these values later in Settings." : "These values are passed to nixpkger before every package operation. Leave Apps file empty to let nixpkger discover apps.nix recursively."); intro.xalign = 0; intro.wrap = true; intro.add_css_class ("muted");
         var config_dir = new Gtk.Entry (); config_dir.placeholder_text = "/etc/nixos or another configuration directory"; config_dir.text = nixpkger.config_dir;
         var flake = new Gtk.Entry (); flake.placeholder_text = "Optional flake path, for example ~/my-nixos#desktop"; flake.text = nixpkger.flake;
         var apps_file = new Gtk.Entry (); apps_file.placeholder_text = "Explicit apps.nix path (recommended when there are several)"; apps_file.text = nixpkger.apps_file; apps_file.hexpand = true;
@@ -136,7 +140,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var form = new Gtk.Grid (); form.column_spacing = 12; form.row_spacing = 10;
         add_setting_row (form, 0, "Config directory", config_dir); add_setting_row (form, 1, "Flake", flake); add_setting_row (form, 2, "Apps file", apps_row); add_setting_row (form, 3, "Module file", module_file); add_setting_row (form, 4, "Category", category);
         var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END; var cancel = new Gtk.Button.with_label ("Cancel"); cancel.clicked.connect (() => dialog.close ()); var save = new Gtk.Button.with_label ("Save settings"); save.add_css_class ("install");
-        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; nixpkger.save_settings (); dialog.close (); show_status ("Nixpkger settings updated."); }); actions.append (cancel); actions.append (save);
+        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; nixpkger.save_settings (); dialog.close (); show_status (first_run ? "Nixpkger configuration saved." : "Nixpkger settings updated."); if (first_run) { show_sudo_wizard (); nixpkger.list (); } }); actions.append (cancel); actions.append (save);
         box.append (title); box.append (intro); box.append (form); box.append (impure); box.append (actions); dialog.set_child (box); dialog.present ();
     }
 
@@ -169,11 +173,35 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         box.append (top); box.append (desc); return box;
     }
 
-    private void select_row (Gtk.ListBoxRow row) { selected = row.get_data<PackageInfo> ("package"); if (selected == null) return; detail_title.label = selected.pname; detail_attr.label = "pkgs." + selected.attr + "  ·  " + selected.version; detail_description.label = selected.description; install_button.set_sensitive (true); }
+    private void select_row (Gtk.ListBoxRow row) { selected = row.get_data<PackageInfo> ("package"); if (selected == null) return; detail_title.label = selected.pname; detail_attr.label = "pkgs." + selected.attr + "  ·  " + selected.version; detail_meta.label = selected.homepage.length > 0 ? selected.homepage : selected.position; detail_description.label = selected.description; install_button.set_sensitive (true); }
     private void show_status (string message) { result_count.label = message; }
     private Gee.ArrayList<PackageInfo> checked_packages () { var packages = new Gee.ArrayList<PackageInfo> (); foreach (var package in checked) packages.add (package); return packages; }
     private void batch_install () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.install_many (checked_packages ()); }
     private void batch_remove () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.remove_many (checked_packages ()); }
+
+    private void display_live_results (string output) {
+        try {
+            var parser = new Json.Parser (); parser.load_from_data (output); var array = parser.get_root ().get_array (); var results = new Gee.ArrayList<PackageInfo> ();
+            for (uint i = 0; i < array.get_length () && results.size < 100; i++) results.add (PackageInfo.from_json (array.get_object_element (i)));
+            display_packages (results); result_count.label = "%d live results".printf (results.size);
+        } catch (Error e) { show_status ("Live search returned invalid data; showing local catalog."); }
+    }
+
+    private void display_installed (string output) {
+        var results = new Gee.ArrayList<PackageInfo> ();
+        foreach (var raw in output.split ("\n")) {
+            var attr = raw.strip (); if (attr.length == 0 || attr.has_prefix ("No packages")) continue;
+            var found = false;
+            foreach (var item in catalog.packages) if (item.attr == attr || item.pname == attr) { results.add (item); found = true; break; }
+            if (!found) results.add (new PackageInfo (attr, attr.substring (attr.last_index_of (".") + 1), "", "Installed package declared by nixpkger.", ""));
+        }
+        display_packages (results); result_count.label = "%d installed packages".printf (results.size);
+    }
+
+    private void display_packages (Gee.ArrayList<PackageInfo> packages) {
+        while (true) { var row = package_list.get_row_at_index (0); if (row == null) break; package_list.remove (row); }
+        foreach (var item in packages) { var row = new Gtk.ListBoxRow (); row.set_child (package_row (item)); row.set_data<PackageInfo> ("package", item); package_list.append (row); }
+    }
 }
 
 public class NixStoreApp : Gtk.Application {

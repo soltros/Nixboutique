@@ -4,10 +4,24 @@ public class PackageInfo : Object {
     public string version { get; set; }
     public string description { get; set; }
     public string url { get; set; }
+    public string homepage { get; set; }
+    public string position { get; set; }
 
-    public PackageInfo (string attr, string pname, string version, string description, string url) {
+    public PackageInfo (string attr, string pname, string version, string description, string url, string homepage = "", string position = "") {
         this.attr = attr; this.pname = pname; this.version = version;
-        this.description = description; this.url = url;
+        this.description = description; this.url = url; this.homepage = homepage; this.position = position;
+    }
+
+    public static PackageInfo from_json (Json.Object item) {
+        var attr = member_string (item, "attr", member_string (item, "name", "unknown"));
+        var pname = member_string (item, "pname", attr.substring (attr.last_index_of (".") + 1));
+        return new PackageInfo (attr, pname, member_string (item, "version", ""), member_string (item, "description", "No description provided."), member_string (item, "homepage", ""), member_string (item, "homepage", ""), member_string (item, "position", ""));
+    }
+
+    private static string member_string (Json.Object item, string name, string fallback) {
+        if (!item.has_member (name)) return fallback;
+        var node = item.get_member (name);
+        return node.get_value_type () == typeof (string) ? node.get_string () : fallback;
     }
 }
 
