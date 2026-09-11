@@ -89,7 +89,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 15); box.add_css_class ("detail"); box.set_size_request (390, -1);
         detail_title.xalign = 0; detail_title.wrap = true; detail_title.add_css_class ("detail-title");
         detail_attr.xalign = 0; detail_attr.wrap = true; detail_attr.add_css_class ("detail-attr");
-        detail_meta.xalign = 0; detail_meta.wrap = true; detail_meta.add_css_class ("muted");
+        detail_meta.xalign = 0; detail_meta.wrap = true; detail_meta.add_css_class ("detail-meta");
         detail_description.xalign = 0; detail_description.wrap = true; detail_description.max_width_chars = 48; detail_description.add_css_class ("package-desc");
         install_button.add_css_class ("install"); install_button.set_sensitive (false); install_button.clicked.connect (() => start_install ());
         try_button.set_sensitive (false); try_button.tooltip_text = "Temporarily launch this package with nix-shell -p"; try_button.clicked.connect (() => start_try_out ());

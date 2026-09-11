@@ -1,20 +1,41 @@
-window { background: #f6f7f9; }
-.sidebar { background: #eef0f4; border-right: 1px solid #d9dde5; }
-.brand { font-size: 22px; font-weight: 800; color: #20242d; }
-.brand-subtitle { color: #6d7480; font-size: 12px; }
-.nav-button { border-radius: 8px; padding: 8px; margin: 1px 10px; }
-.nav-button:checked { background: #dce7ff; color: #1555c0; }
-.content-header { background: #ffffff; border-bottom: 1px solid #e0e3e8; }
-.search { min-height: 38px; border-radius: 9px; }
-.section-title { font-size: 24px; font-weight: 800; color: #20242d; }
-.muted { color: #6d7480; }
-.package-row { padding: 11px 16px; border-bottom: 1px solid #edf0f4; }
-.package-row:hover { background: #f4f7fc; }
-.package-name { font-weight: 700; color: #20242d; }
-.package-desc { color: #5f6773; }
-.package-version { color: #7b8492; font-size: 12px; }
-.detail { background: #ffffff; border-left: 1px solid #e0e3e8; padding: 28px; }
-.detail-title { font-size: 30px; font-weight: 850; color: #20242d; }
-.detail-attr { font-family: monospace; color: #687180; }
-.pill { background: #edf2fb; color: #315c9f; border-radius: 999px; padding: 5px 10px; }
-.install { background: #2764d8; color: white; font-weight: 700; padding: 9px 22px; border-radius: 8px; }
+@define-color canvas #f5f7fb;
+@define-color surface #ffffff;
+@define-color surface_soft #f8faff;
+@define-color line #e3e8f1;
+@define-color ink #182235;
+@define-color muted #718096;
+@define-color accent #426fe4;
+@define-color accent_soft #e8efff;
+
+window { background: @canvas; color: @ink; }
+.sidebar { background: #182235; border-right: 1px solid #24324b; padding: 0 10px; }
+.brand { color: #ffffff; font-size: 24px; font-weight: 800; }
+.brand-subtitle { color: #aebbd0; font-size: 12px; }
+.nav-button { color: #c8d2e4; background: transparent; border: 0; border-radius: 10px; padding: 10px 12px; margin: 2px 0; font-weight: 600; }
+.nav-button:hover { background: #253552; color: #ffffff; }
+.nav-button:checked { background: #3158b8; color: #ffffff; }
+.content-header { background: @surface; border-bottom: 1px solid @line; padding: 4px 0; }
+.search { min-height: 40px; border: 1px solid #d5ddeb; border-radius: 11px; background: @surface_soft; color: @ink; padding: 0 12px; }
+.search:focus-within { border-color: @accent; box-shadow: 0 0 0 3px alpha(@accent, 0.15); }
+button { min-height: 36px; border-radius: 9px; padding: 7px 13px; font-weight: 600; }
+button:hover { background: @accent_soft; }
+.install { background: @accent; color: #ffffff; border: 0; padding: 9px 18px; font-weight: 700; }
+.install:hover { background: #315bc8; color: #ffffff; }
+.section-title { color: @ink; font-size: 24px; font-weight: 800; }
+.muted { color: @muted; }
+.package-row { background: @surface; border-bottom: 1px solid @line; padding: 12px 16px; }
+.package-row:hover { background: @surface_soft; }
+.package-name { color: @ink; font-weight: 700; }
+.package-desc { color: @muted; }
+.package-version { color: #8996aa; font-size: 12px; }
+list row:selected .package-row, list row:selected .package-row:hover { background: @accent_soft; border-left: 3px solid @accent; }
+checkbutton check { border-radius: 5px; }
+.detail { background: @surface; border-left: 1px solid @line; padding: 32px; }
+.detail-title { color: @ink; font-size: 32px; font-weight: 800; }
+.detail-attr { color: @accent; background: @accent_soft; border-radius: 7px; padding: 6px 9px; font-family: monospace; }
+.detail-meta { color: @muted; line-height: 1.35; }
+.package-desc { line-height: 1.45; }
+.pill { background: @accent_soft; color: #315c9f; border-radius: 999px; padding: 5px 10px; }
+scrolledwindow undershoot { background: none; }
+progressbar trough { min-height: 8px; border-radius: 8px; background: #e8edf5; }
+progressbar progress { min-height: 8px; border-radius: 8px; background: @accent; }
