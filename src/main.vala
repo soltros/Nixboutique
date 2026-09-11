@@ -1,6 +1,7 @@
 public class NixStoreWindow : Gtk.ApplicationWindow {
     private Catalog catalog;
     private Nixpkger nixpkger = new Nixpkger ();
+    private NixSearch nix_search = new NixSearch ();
     private Gtk.ListBox package_list = new Gtk.ListBox ();
     private Gtk.Label result_count = new Gtk.Label ("");
     private Gtk.Label detail_title = new Gtk.Label ("Select a package");
@@ -12,6 +13,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     private Gtk.ProgressBar? operation_progress;
     private Gtk.TextBuffer? operation_buffer;
     private uint operation_pulse = 0;
+    private uint search_timeout = 0;
     private PackageInfo? selected;
     private Gee.HashSet<PackageInfo> checked = new Gee.HashSet<PackageInfo> ();
 
@@ -26,6 +28,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         nixpkger.operation_output.connect ((output) => { if (operation_buffer != null) operation_buffer.text = output; });
         nixpkger.search_finished.connect ((output, success) => { if (success) display_live_results (output); else show_status ("Live search unavailable; showing local catalog."); });
         nixpkger.list_finished.connect ((output, success) => { if (success) display_installed (output); else show_status ("Installed packages unavailable; configure nixpkger in Settings."); });
+        nix_search.finished.connect ((output, success) => { if (success) display_elastic_results (output); else show_status ("NixOS search unavailable; showing local catalog."); });
         set_child (build_ui ());
         if (nixpkger.is_available () && nixpkger.settings_configured) nixpkger.list (); else search ("");
     }
@@ -65,7 +68,14 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
 
     private Gtk.Widget build_header () {
         var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 14); header.margin_top = 16; header.margin_bottom = 16; header.margin_start = 20; header.margin_end = 20; header.add_css_class ("content-header");
-        var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search nixpkgs live by name, attribute, or description"; search_entry.hexpand = true; search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => { search (search_entry.text); if (nixpkger.is_available () && search_entry.text.strip ().length >= 2) nixpkger.search (search_entry.text.strip ()); });
+        var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search nixpkgs by name, attribute, or description"; search_entry.hexpand = true; search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => {
+            var query = search_entry.text.strip ();
+            search (query);
+            if (search_timeout != 0) { Source.remove (search_timeout); search_timeout = 0; }
+            if (query.length >= 2) {
+                search_timeout = Timeout.add (250, () => { search_timeout = 0; nix_search.search (query); return Source.REMOVE; });
+            }
+        });
         var install = new Gtk.Button.with_label ("Install checked"); install.add_css_class ("install"); install.clicked.connect (() => batch_install ());
         var remove = new Gtk.Button.with_label ("Remove checked"); remove.clicked.connect (() => batch_remove ());
         var update = new Gtk.Button.with_label ("Update system"); update.clicked.connect (() => nixpkger.update ());
@@ -180,7 +190,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         box.append (top); box.append (desc); return box;
     }
 
-    private void select_row (Gtk.ListBoxRow row) { selected = row.get_data<PackageInfo> ("package"); if (selected == null) return; detail_title.label = selected.pname; detail_attr.label = "pkgs." + selected.attr + "  ·  " + selected.version; detail_meta.label = selected.homepage.length > 0 ? selected.homepage : selected.position; detail_description.label = selected.description; install_button.set_sensitive (true); }
+    private void select_row (Gtk.ListBoxRow row) { selected = row.get_data<PackageInfo> ("package"); if (selected == null) return; detail_title.label = selected.pname; detail_attr.label = "pkgs." + selected.attr + "  ·  " + selected.version; detail_meta.label = string.joinv ("  ·  ", new string[] { selected.license, selected.platforms, selected.homepage.length > 0 ? selected.homepage : selected.position }); detail_description.label = selected.long_description.length > 0 ? selected.long_description : selected.description; install_button.set_sensitive (true); }
     private void show_status (string message) { result_count.label = message; }
     private Gee.ArrayList<PackageInfo> checked_packages () { var packages = new Gee.ArrayList<PackageInfo> (); foreach (var package in checked) packages.add (package); return packages; }
     private void batch_install () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.install_many (checked_packages ()); }
@@ -209,6 +219,14 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
             for (uint i = 0; i < array.get_length () && results.size < 100; i++) results.add (PackageInfo.from_json (array.get_object_element (i)));
             display_packages (results); result_count.label = "%d live results".printf (results.size);
         } catch (Error e) { show_status ("Live search returned invalid data; showing local catalog."); }
+    }
+
+    private void display_elastic_results (string output) {
+        try {
+            var parser = new Json.Parser (); parser.load_from_data (output); var root = parser.get_root ().get_object (); var hits = root.get_object_member ("hits").get_array_member ("hits"); var results = new Gee.ArrayList<PackageInfo> ();
+            for (uint i = 0; i < hits.get_length () && results.size < 100; i++) results.add (PackageInfo.from_elastic (hits.get_object_element (i).get_object_member ("_source")));
+            display_packages (results); result_count.label = "%d NixOS results".printf (results.size);
+        } catch (Error e) { show_status ("NixOS search returned invalid data; showing local catalog."); }
     }
 
     private void display_installed (string output) {

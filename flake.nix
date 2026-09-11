@@ -14,13 +14,13 @@
           version = "0.1.0";
           src = ./.;
           nativeBuildInputs = [ pkgs.meson pkgs.ninja pkgs.pkg-config pkgs.vala ];
-          buildInputs = [ pkgs.gtk4 pkgs.json-glib pkgs.libgee ];
+          buildInputs = [ pkgs.gtk4 pkgs.json-glib pkgs.libgee pkgs.libsoup_3 pkgs.libsoup_3.dev ];
           installPhase = "mkdir -p $out/bin; cp nixboutique $out/bin/";
         };
       });
       devShells = eachSystem (pkgs: {
         default = pkgs.mkShell {
-          packages = [ pkgs.meson pkgs.ninja pkgs.pkg-config pkgs.vala pkgs.gtk4 pkgs.json-glib pkgs.libgee ];
+          packages = [ pkgs.meson pkgs.ninja pkgs.pkg-config pkgs.vala pkgs.gtk4 pkgs.json-glib pkgs.libgee pkgs.libsoup_3 pkgs.libsoup_3.dev ];
         };
       });
     };

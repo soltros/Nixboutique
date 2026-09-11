@@ -5,10 +5,14 @@ An early GTK4/Vala desktop browser for NixOS applications, backed by
 
 Licensed under GPLv3-or-later.
 
-The bundled NixOS package summary provides the initial catalog and offline
-fallback. Once `nixpkger` is available, searches of two or more characters are
-sent to `nixpkger search --json` so the result list and detail pane use live Nix
-metadata (description, version, homepage, and source position when available).
+The bundled NixOS package summary provides an offline fallback. The primary
+search path is the public Elasticsearch-backed search service used by
+[search.nixos.org](https://search.nixos.org/packages): searches of two or more
+characters return live NixOS package records with descriptions, versions,
+licenses, platforms, homepages, and source positions when available. Results
+are debounced and stale responses are discarded. `nixpkger` remains the
+operations backend for installation, removal, updates, snapshots, categories,
+and configuration-file selection.
 Installation, removal, updates, snapshots, categories, and configuration-file
 selection remain delegated to nixpkger.
 
