@@ -45,7 +45,7 @@ public class Nixpkger : Object {
     public void try_out (PackageInfo package) {
         try {
             var executable = package.main_program.length > 0 ? package.main_program : package.pname;
-            string[] argv = { "nix-shell", "-p", package.attr, "--run", executable };
+            string[] argv = { "env", "NIXPKGS_ALLOW_UNFREE=1", "nix-shell", "--impure", "-p", package.attr, "--run", executable };
             operation_started ("try out %s".printf (package.pname));
             var process = new Subprocess.newv (argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
