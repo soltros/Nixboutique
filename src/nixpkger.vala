@@ -50,7 +50,7 @@ public class Nixpkger : Object {
             if (module_file.length > 0) { args.add ("--module-file"); args.add (module_file); }
             if (flake.length > 0) { args.add ("--flake"); args.add (flake); }
             if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree"); args.add ("list");
-            var process = new Subprocess.newv (args.to_array (), SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
+            var process = new Subprocess.newv (owned_argv (args), SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
                 try { string? stdout; string? stderr; process.communicate_utf8_async.end (res, out stdout, out stderr); list_finished (stdout ?? "", process.get_successful ()); }
                 catch (Error e) { list_finished (e.message, false); }
@@ -69,7 +69,7 @@ public class Nixpkger : Object {
             if (flake.length > 0) { args.add ("--flake"); args.add (flake); }
             if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree");
             args.add ("search"); args.add ("--json"); args.add (query);
-            var process = new Subprocess.newv (args.to_array (), SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
+            var process = new Subprocess.newv (owned_argv (args), SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
                 try { string? stdout; string? stderr; process.communicate_utf8_async.end (res, out stdout, out stderr); search_finished (stdout ?? "[]", process.get_successful ()); }
                 catch (Error e) { search_finished (e.message, false); }
@@ -112,7 +112,7 @@ public class Nixpkger : Object {
             if (flake.length > 0) { args.add ("--flake"); args.add (flake); }
             if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree");
             args.add (action); if (category.length > 0 && (action == "install" || action == "remove" || action == "update")) { args.add ("--category"); args.add (category); } foreach (var argument in trailing) args.add (argument);
-            string[] argv = args.to_array ();
+            string[] argv = owned_argv (args);
             var process = new Subprocess.newv (argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
                 try {
@@ -123,5 +123,11 @@ public class Nixpkger : Object {
                 } catch (Error e) { finished (e.message, false); }
             });
         } catch (Error e) { finished (e.message, false); }
+    }
+
+    private string[] owned_argv (Gee.ArrayList<string> args) {
+        string[] argv = new string[args.size];
+        for (int i = 0; i < args.size; i++) argv[i] = args.get (i);
+        return argv;
     }
 }
