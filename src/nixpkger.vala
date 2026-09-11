@@ -82,7 +82,9 @@ public class Nixpkger : Object {
     public void restore (string path) { run_with_args ("restore", { path }); }
 
     private void run_packages (string action, Gee.ArrayList<PackageInfo> packages) {
-        var args = new Gee.ArrayList<string> (); foreach (var package in packages) args.add (package.attr); run_with_args (action, args.to_array ());
+        string[] package_args = new string[packages.size];
+        for (int i = 0; i < packages.size; i++) package_args[i] = packages.get (i).attr;
+        run_with_args (action, package_args);
     }
 
     public void authenticate (string password) {
