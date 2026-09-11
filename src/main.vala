@@ -87,7 +87,7 @@ public class NixStoreApp : Gtk.Application {
     public NixStoreApp () { Object (application_id: "com.soltros.Nixboutique", flags: ApplicationFlags.DEFAULT_FLAGS); }
     protected override void activate () {
         try {
-            var path = Environment.get_variable ("NIXSTORE_CATALOG") ?? "nixos_search_rag/nixos_packages_summary.json";
+            var path = Environment.get_variable ("NIXBOUTIQUE_CATALOG") ?? "nixos_search_rag/nixos_packages_summary.json";
             var window = new NixStoreWindow (this, new Catalog (path)); window.present ();
         } catch (Error e) { critical ("Unable to load catalog: %s", e.message); }
     }

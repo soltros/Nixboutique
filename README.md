@@ -11,14 +11,14 @@ delegates installation to `nixpkger install <attribute>`. Richer package
 records, installed-state detection, removal, updates, and snapshots are the
 next backend/UI slices.
 
-## Run
+## Run from soltros_nixpkgs
 
-From `/home/derrik`:
+The supported distribution path is the package in
+[`soltros_nixpkgs`](https://github.com/soltros/soltros_nixpkgs):
 
 ```sh
-nix develop /home/derrik/Nixboutique
-nix run /home/derrik/Nixboutique
+nix run github:soltros/soltros_nixpkgs#nixboutique
 ```
 
-Use `NIXSTORE_CATALOG=/path/to/nixos_packages_summary.json` to point the app
+Use `NIXBOUTIQUE_CATALOG=/path/to/nixos_packages_summary.json` to point the app
 at another catalog.
