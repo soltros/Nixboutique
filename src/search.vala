@@ -14,7 +14,7 @@ public class NixSearch : Object {
         body.end_array (); body.set_member_name ("type"); body.add_string_value ("best_fields"); body.set_member_name ("fuzziness"); body.add_string_value ("AUTO"); body.end_object (); body.end_object (); body.end_object ();
         var generator = new Json.Generator (); generator.set_root (body.get_root ()); size_t body_length; string body_text = generator.to_data (out body_length);
         var message = new Soup.Message ("POST", "https://search.nixos.org/backend/latest-51-" + index_channel + "/_search");
-        message.get_request_headers ().append ("Authorization", "Basic aWVSALXpZv:X8gPHnzL52wFEekuxsfQ9cSh");
+        message.get_request_headers ().append ("Authorization", "Basic YVdWU0FMWHBadjpYOGdQSG56TDUyd0ZFZWt1eHNmUTljU2g=");
         message.set_request_body_from_bytes ("application/json", new Bytes (body_text.data[0:body_length])); 
         session.send_and_read_async.begin (message, Priority.DEFAULT, null, (obj, res) => {
             try {
