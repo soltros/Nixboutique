@@ -20,6 +20,8 @@ public class Nixpkger : Object {
     public void update () { run ("update"); }
     public void update_soltros () { run_with_args ("update", { "--source", "soltros" }); }
     public void list () { run ("list"); }
+    public void add_category () { if (category.length > 0) run_with_args ("add-category", { category }); }
+    public void list_category () { if (category.length > 0) run_with_args ("list-categories", { category }); }
     public void snapshot () { run ("snapshot"); }
     public void backup () { run ("backup"); }
     public void gc () { run ("gc"); }

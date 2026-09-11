@@ -156,8 +156,10 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
             var chooser = new Gtk.FileDialog (); chooser.title = "Choose a .nix snapshot";
             chooser.open.begin (dialog, null, (obj, res) => { try { var file = chooser.open.end (res); if (file != null && file.get_path () != null) nixpkger.restore (file.get_path ()); } catch (Error e) { show_status (e.message); } });
         });
+        var add_category = new Gtk.Button.with_label ("Create configured category"); add_category.clicked.connect (() => nixpkger.add_category ());
+        var list_category = new Gtk.Button.with_label ("List configured category"); list_category.clicked.connect (() => nixpkger.list_category ());
         var close = new Gtk.Button.with_label ("Close"); close.clicked.connect (() => dialog.close ());
-        box.append (title); box.append (info); box.append (snapshot); box.append (backup); box.append (restore); box.append (gc); box.append (close); dialog.set_child (box); dialog.present ();
+        box.append (title); box.append (info); box.append (snapshot); box.append (backup); box.append (restore); box.append (add_category); box.append (list_category); box.append (gc); box.append (close); dialog.set_child (box); dialog.present ();
     }
 
     private Gtk.Widget package_row (PackageInfo item) {
