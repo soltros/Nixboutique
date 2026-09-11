@@ -92,7 +92,8 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         detail_description.xalign = 0; detail_description.wrap = true; detail_description.max_width_chars = 48; detail_description.add_css_class ("package-desc");
         install_button.add_css_class ("install"); install_button.set_sensitive (false); install_button.clicked.connect (() => start_install ());
         box.append (detail_title); box.append (detail_attr); box.append (detail_meta); box.append (detail_description); box.append (install_button);
-        var note = new Gtk.Label ("Actions are delegated to nixpkger and may ask for administrator approval."); note.xalign = 0; note.wrap = true; note.add_css_class ("muted"); box.append (note); return box;
+        var note = new Gtk.Label ("Actions are delegated to nixpkger and may ask for administrator approval."); note.xalign = 0; note.wrap = true; note.add_css_class ("muted"); box.append (note);
+        var scroll = new Gtk.ScrolledWindow (); scroll.set_child (box); scroll.vexpand = true; scroll.hscrollbar_policy = Gtk.PolicyType.NEVER; return scroll;
     }
 
     private void search (string query) {
@@ -191,7 +192,28 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         box.append (top); box.append (desc); return box;
     }
 
-    private void select_row (Gtk.ListBoxRow row) { selected = row.get_data<PackageInfo> ("package"); if (selected == null) return; detail_title.label = selected.pname; detail_attr.label = "pkgs." + selected.attr + "  ·  " + selected.version; detail_meta.label = string.joinv ("  ·  ", new string[] { selected.license, selected.platforms, selected.homepage.length > 0 ? selected.homepage : selected.position }); detail_description.label = selected.long_description.length > 0 ? selected.long_description : selected.description; install_button.set_sensitive (true); }
+    private void select_row (Gtk.ListBoxRow row) {
+        selected = row.get_data<PackageInfo> ("package"); if (selected == null) return;
+        detail_title.label = selected.pname;
+        detail_attr.label = "pkgs." + selected.attr + (selected.version.length > 0 ? "  ·  " + selected.version : "");
+        var metadata = new Gee.ArrayList<string> ();
+        if (selected.license.length > 0) metadata.add ("License\n" + selected.license);
+        if (selected.platforms.length > 0) metadata.add ("Platforms\n" + format_platforms (selected.platforms));
+        if (selected.homepage.length > 0) metadata.add ("Homepage\n" + selected.homepage);
+        if (selected.position.length > 0) metadata.add ("Source\n" + selected.position);
+        detail_meta.label = string.joinv ("\n\n", metadata.to_array ());
+        detail_description.label = selected.long_description.length > 0 ? selected.long_description : selected.description;
+        install_button.set_sensitive (true);
+    }
+
+    private string format_platforms (string value) {
+        var platforms = value.split (", ");
+        var shown = new Gee.ArrayList<string> ();
+        var limit = int.min (platforms.length, 8);
+        for (int i = 0; i < limit; i++) shown.add ("• " + platforms[i]);
+        if (platforms.length > limit) shown.add ("+ %d more platforms".printf (platforms.length - limit));
+        return string.joinv ("\n", shown.to_array ());
+    }
     private void show_status (string message) { result_count.label = message; }
     private Gee.ArrayList<PackageInfo> checked_packages () { var packages = new Gee.ArrayList<PackageInfo> (); foreach (var package in checked) packages.add (package); return packages; }
     private void batch_install () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.install_many (checked_packages ()); }
