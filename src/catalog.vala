@@ -17,7 +17,7 @@ public class PackageInfo : Object {
 
     public static PackageInfo from_elastic (Json.Object item) {
         var result = new PackageInfo (member_string (item, "package_attr_name", "unknown"), member_string (item, "package_pname", "unknown"), member_string (item, "package_pversion", ""), member_string (item, "package_description", "No description provided."), member_string (item, "package_homepage", ""), member_string (item, "package_homepage", ""), member_string (item, "package_position", ""));
-        result.long_description = member_string (item, "package_longDescription", ""); result.platforms = member_array (item, "package_platforms");
+        result.long_description = clean_description (member_string (item, "package_longDescription", "")); result.platforms = member_array (item, "package_platforms");
         if (item.has_member ("package_license") && item.get_member ("package_license").get_node_type () == Json.NodeType.ARRAY) { var licenses = item.get_array_member ("package_license"); var names = new Gee.ArrayList<string> (); for (uint i = 0; i < licenses.get_length (); i++) names.add (member_string (licenses.get_object_element (i), "fullName", "")); result.license = string.joinv (", ", names.to_array ()); }
         return result;
     }
@@ -37,6 +37,14 @@ public class PackageInfo : Object {
     private static string member_array (Json.Object item, string name) {
         if (!item.has_member (name) || item.get_member (name).get_node_type () != Json.NodeType.ARRAY) return "";
         var values = new Gee.ArrayList<string> (); foreach (var value in item.get_array_member (name).get_elements ()) if (value.get_value_type () == typeof (string)) values.add (value.get_string ()); return string.joinv (", ", values.to_array ());
+    }
+
+    private static string clean_description (string value) {
+        if (value.length == 0) return value;
+        var clean = value.replace ("<rendered-html>", "").replace ("</rendered-html>", "");
+        clean = clean.replace ("<p>", "").replace ("</p>", "\n\n").replace ("<br>", "\n").replace ("<br/>", "\n").replace ("<br />", "\n");
+        try { clean = new Regex ("<[^>]+>").replace (clean, -1, 0, ""); } catch (Error e) { }
+        return clean.replace ("&amp;", "&").replace ("&quot;", "\"").replace ("&#39;", "'").replace ("&lt;", "<").replace ("&gt;", ">").strip ();
     }
 }
 
