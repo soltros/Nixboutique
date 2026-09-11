@@ -43,6 +43,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         foreach (var label in new string[] { "Browse applications", "Installed", "Updates", "Snapshots" }) {
             var button = new Gtk.ToggleButton.with_label (label); button.set_halign (Gtk.Align.FILL); button.add_css_class ("nav-button"); side.append (button);
         }
+        var settings = new Gtk.Button.with_label ("Settings"); settings.set_halign (Gtk.Align.FILL); settings.add_css_class ("nav-button"); settings.clicked.connect (() => show_settings ()); side.append (settings);
         var spacer = new Gtk.Box (Gtk.Orientation.VERTICAL, 0); spacer.vexpand = true; side.append (spacer);
         var status = new Gtk.Label ("Local catalog\nNixpkger backend ready"); status.add_css_class ("muted"); status.margin_bottom = 18; side.append (status);
         return side;
@@ -104,6 +105,32 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         nixpkger.auth_finished.connect ((message, success) => { if (success) dialog.close (); else { authorize.set_sensitive (true); error.label = message; } show_status (message); });
         password.activate.connect (() => authorize.clicked ());
         actions.append (continue_button); actions.append (authorize); box.append (title); box.append (body); box.append (password); box.append (error); box.append (actions); dialog.set_child (box); dialog.present ();
+    }
+
+    private void show_settings () {
+        var dialog = new Gtk.Window (); dialog.title = "Nixboutique settings"; dialog.transient_for = this; dialog.modal = true; dialog.default_width = 700; dialog.default_height = 500;
+        var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 14); box.margin_top = 24; box.margin_bottom = 24; box.margin_start = 26; box.margin_end = 26;
+        var title = new Gtk.Label ("Nixpkger configuration"); title.xalign = 0; title.add_css_class ("section-title");
+        var intro = new Gtk.Label ("These values are passed to nixpkger before every package operation. Leave Apps file empty to let nixpkger discover apps.nix recursively."); intro.xalign = 0; intro.wrap = true; intro.add_css_class ("muted");
+        var config_dir = new Gtk.Entry (); config_dir.placeholder_text = "/etc/nixos or another configuration directory"; config_dir.text = nixpkger.config_dir;
+        var flake = new Gtk.Entry (); flake.placeholder_text = "Optional flake path, for example ~/my-nixos#desktop"; flake.text = nixpkger.flake;
+        var apps_file = new Gtk.Entry (); apps_file.placeholder_text = "Explicit apps.nix path (recommended when there are several)"; apps_file.text = nixpkger.apps_file; apps_file.hexpand = true;
+        var choose = new Gtk.Button.with_label ("Locate apps.nix…"); choose.clicked.connect (() => {
+            var chooser = new Gtk.FileDialog (); chooser.title = "Choose the apps.nix package module";
+            chooser.open.begin (dialog, null, (obj, res) => { try { var file = chooser.open.end (res); if (file != null && file.get_path () != null) apps_file.text = file.get_path (); } catch (Error e) { show_status (e.message); } });
+        });
+        var apps_row = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8); apps_row.append (apps_file); apps_row.append (choose);
+        var module_file = new Gtk.Entry (); module_file.placeholder_text = "Optional configuration.nix or importing module path"; module_file.text = nixpkger.module_file;
+        var impure = new Gtk.CheckButton.with_label ("Use --impure for flake operations"); impure.active = nixpkger.impure;
+        var form = new Gtk.Grid (); form.column_spacing = 12; form.row_spacing = 10;
+        add_setting_row (form, 0, "Config directory", config_dir); add_setting_row (form, 1, "Flake", flake); add_setting_row (form, 2, "Apps file", apps_row); add_setting_row (form, 3, "Module file", module_file);
+        var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END; var cancel = new Gtk.Button.with_label ("Cancel"); cancel.clicked.connect (() => dialog.close ()); var save = new Gtk.Button.with_label ("Save settings"); save.add_css_class ("install");
+        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.impure = impure.active; dialog.close (); show_status ("Nixpkger settings updated."); }); actions.append (cancel); actions.append (save);
+        box.append (title); box.append (intro); box.append (form); box.append (impure); box.append (actions); dialog.set_child (box); dialog.present ();
+    }
+
+    private void add_setting_row (Gtk.Grid form, int row, string label, Gtk.Widget field) {
+        var caption = new Gtk.Label (label); caption.xalign = 1; caption.add_css_class ("package-name"); field.hexpand = true; form.attach (caption, 0, row, 1, 1); form.attach (field, 1, row, 1, 1);
     }
 
     private Gtk.Widget package_row (PackageInfo item) {
