@@ -20,16 +20,17 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
 
     public NixStoreWindow (Gtk.Application app, Catalog catalog) {
         Object (application: app, title: "Nixboutique", default_width: 1320, default_height: 820);
+        NixboutiqueLog.info ("window startup; nixpkger=%s, configured=%s".printf (nixpkger.is_available () ? "available" : "missing", nixpkger.settings_configured ? "yes" : "no"));
         var css = new Gtk.CssProvider ();
         css.load_from_resource ("/com/soltros/Nixboutique/style.css");
         Gtk.StyleContext.add_provider_for_display (Gdk.Display.get_default (), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         this.catalog = catalog;
-        nixpkger.finished.connect ((message, success) => { install_button.set_sensitive (selected != null); try_button.set_sensitive (selected != null); install_button.label = "Install"; show_status (success ? "✓ Operation completed" : "⚠ Operation failed — expand the operation console for details"); });
+        nixpkger.finished.connect ((message, success) => { NixboutiqueLog.info ("operation finished: success=%s".printf (success ? "yes" : "no")); install_button.set_sensitive (selected != null); try_button.set_sensitive (selected != null); install_button.label = "Install"; show_status (success ? "✓ Operation completed" : "⚠ Operation failed — expand the operation console for details"); });
         nixpkger.operation_started.connect ((action) => show_operation (action));
         nixpkger.operation_output.connect ((output) => { if (operation_buffer != null) operation_buffer.text = output; });
         nixpkger.search_finished.connect ((output, success) => { if (success) display_live_results (output); else show_status ("Live search unavailable; showing local catalog."); });
         nixpkger.list_finished.connect ((output, success) => { if (success) display_installed (output); else show_status ("Installed packages unavailable; configure nixpkger in Settings."); });
-        nix_search.finished.connect ((output, success) => { if (success) display_elastic_results (output); else show_status ("NixOS search unavailable; showing local catalog."); });
+        nix_search.finished.connect ((output, success) => { NixboutiqueLog.info ("search finished: success=%s, bytes=%d".printf (success ? "yes" : "no", output.length)); if (success) display_elastic_results (output); else show_status ("NixOS search unavailable; showing local catalog."); });
         set_child (build_ui ());
         if (nixpkger.is_available () && nixpkger.settings_configured) nixpkger.list (); else search ("");
     }
@@ -217,7 +218,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         if (platforms.length > limit) shown.add ("+ %d more platforms".printf (platforms.length - limit));
         return string.joinv ("\n", shown.to_array ());
     }
-    private void show_status (string message) { result_count.label = message; }
+    private void show_status (string message) { NixboutiqueLog.debug ("status: " + message); result_count.label = message; }
     private Gee.ArrayList<PackageInfo> checked_packages () { var packages = new Gee.ArrayList<PackageInfo> (); foreach (var package in checked) packages.add (package); return packages; }
     private void batch_install () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.install_many (checked_packages ()); }
     private void batch_remove () { if (checked.size == 0) { show_status ("Check one or more packages first."); return; } nixpkger.remove_many (checked_packages ()); }
@@ -253,7 +254,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
             var parser = new Json.Parser (); parser.load_from_data (output); var root = parser.get_root ().get_object (); var hits = root.get_object_member ("hits").get_array_member ("hits"); var results = new Gee.ArrayList<PackageInfo> ();
             for (uint i = 0; i < hits.get_length () && results.size < 100; i++) results.add (PackageInfo.from_elastic (hits.get_object_element (i).get_object_member ("_source")));
             display_packages (results); result_count.label = "%d NixOS results".printf (results.size);
-        } catch (Error e) { show_status ("NixOS search returned invalid data; showing local catalog."); }
+        } catch (Error e) { NixboutiqueLog.error ("search response parse failed: %s".printf (e.message)); show_status ("NixOS search returned invalid data; showing local catalog."); }
     }
 
     private void display_installed (string output) {

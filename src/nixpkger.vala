@@ -35,6 +35,7 @@ public class Nixpkger : Object {
     private string settings_path () { return Path.build_filename (Environment.get_user_config_dir (), "nixboutique", "settings.ini"); }
 
     public bool is_available () {
+        NixboutiqueLog.debug ("checking nixpkger command: " + command);
         return Environment.find_program_in_path (command) != null;
     }
 
@@ -127,6 +128,8 @@ public class Nixpkger : Object {
             if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree");
             args.add (action); if (category.length > 0 && (action == "install" || action == "remove" || action == "update")) { args.add ("--category"); args.add (category); } foreach (var argument in trailing) args.add (argument);
             string[] argv = owned_argv (args);
+            NixboutiqueLog.info ("starting nixpkger operation: " + action);
+            NixboutiqueLog.debug ("argv: " + string.joinv (" ", argv));
             operation_started (action);
             var process = new Subprocess.newv (argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
@@ -135,10 +138,10 @@ public class Nixpkger : Object {
                     string? stderr;
                     process.communicate_utf8_async.end (res, out stdout, out stderr);
                     operation_output (stdout ?? "");
-                    finished (stdout ?? "Operation complete.", process.get_successful ());
-                } catch (Error e) { operation_output (e.message); finished (e.message, false); }
+                    var success = process.get_successful (); NixboutiqueLog.info ("nixpkger operation exited: success=%s, output-bytes=%d".printf (success ? "yes" : "no", (stdout ?? "").length)); finished (stdout ?? "Operation complete.", success);
+                } catch (Error e) { NixboutiqueLog.error ("nixpkger operation communication failed: %s".printf (e.message)); operation_output (e.message); finished (e.message, false); }
             });
-        } catch (Error e) { operation_output (e.message); finished (e.message, false); }
+        } catch (Error e) { NixboutiqueLog.error ("nixpkger operation could not start: %s".printf (e.message)); operation_output (e.message); finished (e.message, false); }
     }
 
     private string[] owned_argv (Gee.ArrayList<string> args) {

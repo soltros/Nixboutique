@@ -33,3 +33,16 @@ nix run github:soltros/soltros_nixpkgs#nixboutique
 
 Use `NIXBOUTIQUE_CATALOG=/path/to/nixos_packages_summary.json` to point the app
 at another catalog.
+
+## Terminal diagnostics
+
+When launched from a terminal, Nixboutique writes timestamped lifecycle and
+failure diagnostics to stderr. Set `NIXBOUTIQUE_DEBUG=1` for detailed search,
+status, and subprocess argument traces:
+
+```sh
+NIXBOUTIQUE_DEBUG=1 nixboutique
+```
+
+Passwords and command output are never included in debug traces; operation
+output remains available in the in-app expandable console.

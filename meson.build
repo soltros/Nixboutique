@@ -9,7 +9,7 @@ gnome = import('gnome')
 resources = gnome.compile_resources('nixboutique-resources', 'data/com.soltros.Nixboutique.gresource.xml', source_dir: 'data')
 
 executable('nixboutique',
-  ['src/main.vala', 'src/catalog.vala', 'src/nixpkger.vala', 'src/search.vala', resources],
+  ['src/main.vala', 'src/catalog.vala', 'src/nixpkger.vala', 'src/search.vala', 'src/logging.vala', resources],
   dependencies: [gtk, json, gee, soup],
   install: true,
 )
