@@ -42,6 +42,18 @@ public class Nixpkger : Object {
     public void remove (PackageInfo package) { var packages = new Gee.ArrayList<PackageInfo> (); packages.add (package); remove_many (packages); }
     public void install_many (Gee.ArrayList<PackageInfo> packages) { run_packages ("install", packages); }
     public void remove_many (Gee.ArrayList<PackageInfo> packages) { run_packages ("remove", packages); }
+    public void try_out (PackageInfo package) {
+        try {
+            var executable = package.main_program.length > 0 ? package.main_program : package.pname;
+            string[] argv = { "nix-shell", "-p", package.attr, "--run", executable };
+            operation_started ("try out %s".printf (package.pname));
+            var process = new Subprocess.newv (argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
+            process.communicate_utf8_async.begin (null, null, (obj, res) => {
+                try { string? stdout; string? stderr; process.communicate_utf8_async.end (res, out stdout, out stderr); operation_output (stdout ?? ""); finished (stdout ?? "Application exited.", process.get_successful ()); }
+                catch (Error e) { operation_output (e.message); finished (e.message, false); }
+            });
+        } catch (Error e) { operation_output (e.message); finished (e.message, false); }
+    }
     public void update () { run ("update"); }
     public void update_soltros () { run_with_args ("update", { "--source", "soltros" }); }
     public void list () {

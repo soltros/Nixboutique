@@ -9,15 +9,16 @@ public class PackageInfo : Object {
     public string long_description { get; set; }
     public string license { get; set; }
     public string platforms { get; set; }
+    public string main_program { get; set; }
 
     public PackageInfo (string attr, string pname, string version, string description, string url, string homepage = "", string position = "") {
         this.attr = attr; this.pname = pname; this.version = version;
-        this.description = description; this.url = url; this.homepage = homepage; this.position = position; this.long_description = ""; this.license = ""; this.platforms = "";
+        this.description = description; this.url = url; this.homepage = homepage; this.position = position; this.long_description = ""; this.license = ""; this.platforms = ""; this.main_program = "";
     }
 
     public static PackageInfo from_elastic (Json.Object item) {
         var result = new PackageInfo (member_string (item, "package_attr_name", "unknown"), member_string (item, "package_pname", "unknown"), member_string (item, "package_pversion", ""), member_string (item, "package_description", "No description provided."), member_string (item, "package_homepage", ""), member_string (item, "package_homepage", ""), member_string (item, "package_position", ""));
-        result.long_description = clean_description (member_string (item, "package_longDescription", "")); result.platforms = member_array (item, "package_platforms");
+        result.long_description = clean_description (member_string (item, "package_longDescription", "")); result.platforms = member_array (item, "package_platforms"); result.main_program = member_string (item, "package_mainProgram", "");
         if (item.has_member ("package_license") && item.get_member ("package_license").get_node_type () == Json.NodeType.ARRAY) { var licenses = item.get_array_member ("package_license"); var names = new Gee.ArrayList<string> (); for (uint i = 0; i < licenses.get_length (); i++) names.add (member_string (licenses.get_object_element (i), "fullName", "")); result.license = string.joinv (", ", names.to_array ()); }
         return result;
     }
@@ -25,7 +26,9 @@ public class PackageInfo : Object {
     public static PackageInfo from_json (Json.Object item) {
         var attr = member_string (item, "attr", member_string (item, "name", "unknown"));
         var pname = member_string (item, "pname", attr.substring (attr.last_index_of (".") + 1));
-        return new PackageInfo (attr, pname, member_string (item, "version", ""), member_string (item, "description", "No description provided."), member_string (item, "homepage", ""), member_string (item, "homepage", ""), member_string (item, "position", ""));
+        var result = new PackageInfo (attr, pname, member_string (item, "version", ""), member_string (item, "description", "No description provided."), member_string (item, "homepage", ""), member_string (item, "homepage", ""), member_string (item, "position", ""));
+        result.main_program = member_string (item, "mainProgram", "");
+        return result;
     }
 
     private static string member_string (Json.Object item, string name, string fallback) {
