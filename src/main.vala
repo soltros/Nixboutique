@@ -137,11 +137,12 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         var module_file = new Gtk.Entry (); module_file.placeholder_text = "Optional configuration.nix or importing module path"; module_file.text = nixpkger.module_file;
         var category = new Gtk.Entry (); category.placeholder_text = "Optional category name"; category.text = nixpkger.category;
         var impure = new Gtk.CheckButton.with_label ("Use --impure for flake operations"); impure.active = nixpkger.impure;
+        var allow_unfree = new Gtk.CheckButton.with_label ("Allow non-free packages"); allow_unfree.active = nixpkger.allow_unfree; allow_unfree.tooltip_text = "Include packages marked unfree in live search and permit them during nixpkger rebuilds.";
         var form = new Gtk.Grid (); form.column_spacing = 12; form.row_spacing = 10;
         add_setting_row (form, 0, "Config directory", config_dir); add_setting_row (form, 1, "Flake", flake); add_setting_row (form, 2, "Apps file", apps_row); add_setting_row (form, 3, "Module file", module_file); add_setting_row (form, 4, "Category", category);
         var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 10); actions.halign = Gtk.Align.END; var cancel = new Gtk.Button.with_label ("Cancel"); cancel.clicked.connect (() => dialog.close ()); var save = new Gtk.Button.with_label ("Save settings"); save.add_css_class ("install");
-        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; nixpkger.save_settings (); dialog.close (); show_status (first_run ? "Nixpkger configuration saved." : "Nixpkger settings updated."); if (first_run) { show_sudo_wizard (); nixpkger.list (); } }); actions.append (cancel); actions.append (save);
-        box.append (title); box.append (intro); box.append (form); box.append (impure); box.append (actions); dialog.set_child (box); dialog.present ();
+        save.clicked.connect (() => { nixpkger.config_dir = config_dir.text.strip (); nixpkger.flake = flake.text.strip (); nixpkger.apps_file = apps_file.text.strip (); nixpkger.module_file = module_file.text.strip (); nixpkger.category = category.text.strip (); nixpkger.impure = impure.active; nixpkger.allow_unfree = allow_unfree.active; nixpkger.save_settings (); dialog.close (); show_status (first_run ? "Nixpkger configuration saved." : "Nixpkger settings updated."); if (first_run) { show_sudo_wizard (); nixpkger.list (); } }); actions.append (cancel); actions.append (save);
+        box.append (title); box.append (intro); box.append (form); box.append (impure); box.append (allow_unfree); box.append (actions); dialog.set_child (box); dialog.present ();
     }
 
     private void add_setting_row (Gtk.Grid form, int row, string label, Gtk.Widget field) {

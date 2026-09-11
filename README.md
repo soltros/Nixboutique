@@ -12,6 +12,9 @@ metadata (description, version, homepage, and source position when available).
 Installation, removal, updates, snapshots, categories, and configuration-file
 selection remain delegated to nixpkger.
 
+Settings includes an “Allow non-free packages” switch. When enabled, it is
+persisted and passed through to nixpkger for live search and rebuild operations.
+
 Nixpkger is required for package actions. If it is not found at startup,
 Nixboutique opens setup instructions for the latest release and Git install.
 

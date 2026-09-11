@@ -10,6 +10,7 @@ public class Nixpkger : Object {
     public string flake { get; set; default = ""; }
     public string category { get; set; default = ""; }
     public bool impure { get; set; default = false; }
+    public bool allow_unfree { get; set; default = false; }
     public bool settings_configured { get; private set; default = false; }
 
     public Nixpkger () { load_settings (); }
@@ -18,13 +19,13 @@ public class Nixpkger : Object {
         var key = new KeyFile (); var path = settings_path ();
         try {
             key.load_from_file (path, KeyFileFlags.NONE);
-            config_dir = key.get_string ("nixpkger", "config-dir"); apps_file = key.get_string ("nixpkger", "apps-file"); module_file = key.get_string ("nixpkger", "module-file"); flake = key.get_string ("nixpkger", "flake"); category = key.get_string ("nixpkger", "category"); impure = key.get_boolean ("nixpkger", "impure");
+            config_dir = key.get_string ("nixpkger", "config-dir"); apps_file = key.get_string ("nixpkger", "apps-file"); module_file = key.get_string ("nixpkger", "module-file"); flake = key.get_string ("nixpkger", "flake"); category = key.get_string ("nixpkger", "category"); impure = key.get_boolean ("nixpkger", "impure"); allow_unfree = key.has_key ("nixpkger", "allow-unfree") && key.get_boolean ("nixpkger", "allow-unfree");
             settings_configured = apps_file.length > 0 || flake.length > 0 || config_dir.length > 0;
         } catch (Error e) { }
     }
 
     public void save_settings () {
-        var key = new KeyFile (); key.set_string ("nixpkger", "config-dir", config_dir); key.set_string ("nixpkger", "apps-file", apps_file); key.set_string ("nixpkger", "module-file", module_file); key.set_string ("nixpkger", "flake", flake); key.set_string ("nixpkger", "category", category); key.set_boolean ("nixpkger", "impure", impure);
+        var key = new KeyFile (); key.set_string ("nixpkger", "config-dir", config_dir); key.set_string ("nixpkger", "apps-file", apps_file); key.set_string ("nixpkger", "module-file", module_file); key.set_string ("nixpkger", "flake", flake); key.set_string ("nixpkger", "category", category); key.set_boolean ("nixpkger", "impure", impure); key.set_boolean ("nixpkger", "allow-unfree", allow_unfree);
         try { var path = settings_path (); DirUtils.create_with_parents (Path.get_dirname (path), 0755); key.save_to_file (path); } catch (Error e) { }
         settings_configured = apps_file.length > 0 || flake.length > 0 || config_dir.length > 0;
     }
@@ -48,7 +49,7 @@ public class Nixpkger : Object {
             if (apps_file.length > 0) { args.add ("--apps-file"); args.add (apps_file); }
             if (module_file.length > 0) { args.add ("--module-file"); args.add (module_file); }
             if (flake.length > 0) { args.add ("--flake"); args.add (flake); }
-            if (impure) args.add ("--impure"); args.add ("list");
+            if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree"); args.add ("list");
             var process = new Subprocess.newv (args.to_array (), SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
                 try { string? stdout; string? stderr; process.communicate_utf8_async.end (res, out stdout, out stderr); list_finished (stdout ?? "", process.get_successful ()); }
@@ -66,7 +67,7 @@ public class Nixpkger : Object {
             if (apps_file.length > 0) { args.add ("--apps-file"); args.add (apps_file); }
             if (module_file.length > 0) { args.add ("--module-file"); args.add (module_file); }
             if (flake.length > 0) { args.add ("--flake"); args.add (flake); }
-            if (impure) args.add ("--impure");
+            if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree");
             args.add ("search"); args.add ("--json"); args.add (query);
             var process = new Subprocess.newv (args.to_array (), SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
             process.communicate_utf8_async.begin (null, null, (obj, res) => {
@@ -107,7 +108,7 @@ public class Nixpkger : Object {
             if (apps_file.length > 0) { args.add ("--apps-file"); args.add (apps_file); }
             if (module_file.length > 0) { args.add ("--module-file"); args.add (module_file); }
             if (flake.length > 0) { args.add ("--flake"); args.add (flake); }
-            if (impure) args.add ("--impure");
+            if (impure) args.add ("--impure"); if (allow_unfree) args.add ("--allow-unfree");
             args.add (action); if (category.length > 0 && (action == "install" || action == "remove" || action == "update")) { args.add ("--category"); args.add (category); } foreach (var argument in trailing) args.add (argument);
             string[] argv = args.to_array ();
             var process = new Subprocess.newv (argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
