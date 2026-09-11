@@ -23,7 +23,7 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
         css.load_from_resource ("/com/soltros/Nixboutique/style.css");
         Gtk.StyleContext.add_provider_for_display (Gdk.Display.get_default (), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         this.catalog = catalog;
-        nixpkger.finished.connect ((message, success) => { install_button.set_sensitive (selected != null); install_button.label = "Install"; show_status (success ? "✓ " + message : "⚠ " + message); });
+        nixpkger.finished.connect ((message, success) => { install_button.set_sensitive (selected != null); install_button.label = "Install"; show_status (success ? "✓ Operation completed" : "⚠ Operation failed — expand the operation console for details"); });
         nixpkger.operation_started.connect ((action) => show_operation (action));
         nixpkger.operation_output.connect ((output) => { if (operation_buffer != null) operation_buffer.text = output; });
         nixpkger.search_finished.connect ((output, success) => { if (success) display_live_results (output); else show_status ("Live search unavailable; showing local catalog."); });
@@ -67,8 +67,8 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
     }
 
     private Gtk.Widget build_header () {
-        var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 14); header.margin_top = 16; header.margin_bottom = 16; header.margin_start = 20; header.margin_end = 20; header.add_css_class ("content-header");
-        var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search nixpkgs by name, attribute, or description"; search_entry.hexpand = true; search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => {
+        var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 14); header.margin_top = 16; header.margin_bottom = 16; header.margin_start = 20; header.margin_end = 20; header.set_vexpand (false); header.set_valign (Gtk.Align.START); header.add_css_class ("content-header");
+        var search_entry = new Gtk.SearchEntry (); search_entry.placeholder_text = "Search nixpkgs by name, attribute, or description"; search_entry.hexpand = true; search_entry.set_vexpand (false); search_entry.set_valign (Gtk.Align.CENTER); search_entry.set_size_request (-1, 38); search_entry.add_css_class ("search"); search_entry.search_changed.connect (() => {
             var query = search_entry.text.strip ();
             search (query);
             if (search_timeout != 0) { Source.remove (search_timeout); search_timeout = 0; }
@@ -76,11 +76,12 @@ public class NixStoreWindow : Gtk.ApplicationWindow {
                 search_timeout = Timeout.add (250, () => { search_timeout = 0; nix_search.search (query); return Source.REMOVE; });
             }
         });
-        var install = new Gtk.Button.with_label ("Install checked"); install.add_css_class ("install"); install.clicked.connect (() => batch_install ());
-        var remove = new Gtk.Button.with_label ("Remove checked"); remove.clicked.connect (() => batch_remove ());
-        var update = new Gtk.Button.with_label ("Update system"); update.clicked.connect (() => nixpkger.update ());
-        var soltros_update = new Gtk.Button.with_label ("Update soltros"); soltros_update.clicked.connect (() => nixpkger.update_soltros ());
-        header.append (search_entry); header.append (install); header.append (remove); header.append (update); header.append (soltros_update); result_count.add_css_class ("muted"); header.append (result_count); return header;
+        var install = new Gtk.Button.with_label ("Install checked"); install.set_vexpand (false); install.set_valign (Gtk.Align.CENTER); install.add_css_class ("install"); install.clicked.connect (() => batch_install ());
+        var remove = new Gtk.Button.with_label ("Remove checked"); remove.set_vexpand (false); remove.set_valign (Gtk.Align.CENTER); remove.clicked.connect (() => batch_remove ());
+        var update = new Gtk.Button.with_label ("Update system"); update.set_vexpand (false); update.set_valign (Gtk.Align.CENTER); update.clicked.connect (() => nixpkger.update ());
+        var soltros_update = new Gtk.Button.with_label ("Update soltros"); soltros_update.set_vexpand (false); soltros_update.set_valign (Gtk.Align.CENTER); soltros_update.clicked.connect (() => nixpkger.update_soltros ());
+        result_count.set_vexpand (false); result_count.set_valign (Gtk.Align.CENTER); result_count.set_max_width_chars (22); result_count.ellipsize = Pango.EllipsizeMode.END; result_count.add_css_class ("muted");
+        header.append (search_entry); header.append (install); header.append (remove); header.append (update); header.append (soltros_update); header.append (result_count); return header;
     }
 
     private Gtk.Widget build_detail () {
